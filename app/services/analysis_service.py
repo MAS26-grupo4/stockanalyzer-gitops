@@ -7,17 +7,17 @@ import pandas as pd
 import yfinance as yf
 
 
-PERIOD = "3mo"
+PERIOD_DEFAULT = "3mo"
 SMA_WINDOWS = (8, 21, 50, 100)
 
 
-def fetch_history(symbol: str) -> pd.DataFrame:
-    """Descarga el histórico de cierres para el periodo configurado."""
+def fetch_history(symbol: str, period: str = PERIOD_DEFAULT) -> pd.DataFrame:
+    """Descarga el histórico de cierres para el periodo indicado."""
     ticker = yf.Ticker(symbol)
-    return ticker.history(period=PERIOD)
+    return ticker.history(period=period)
 
 
-def compute_indicators(history: pd.DataFrame) -> dict:
+def compute_indicators(history: pd.DataFrame, period: str) -> dict:
     """Calcula SMAs y devuelve el último valor de cada una junto a la serie."""
     closes = history["Close"]
 
@@ -33,7 +33,7 @@ def compute_indicators(history: pd.DataFrame) -> dict:
 
     return {
         "last_close": round(float(closes.iloc[-1]), 4),
-        "period": PERIOD,
+        "period": period,
         "points": len(closes),
         "sma_last": sma_last,
         "sma_series": sma_series,
@@ -42,11 +42,11 @@ def compute_indicators(history: pd.DataFrame) -> dict:
     }
 
 
-def get_analysis(symbol: str) -> dict | None:
+def get_analysis(symbol: str, period: str = PERIOD_DEFAULT) -> dict | None:
     """Pipeline: descarga histórico + calcula indicadores. None si no hay datos."""
-    history = fetch_history(symbol)
+    history = fetch_history(symbol, period)
     if history.empty:
         return None
-    payload = compute_indicators(history)
+    payload = compute_indicators(history, period)
     payload["symbol"] = symbol.upper()
     return payload

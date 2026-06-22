@@ -12,12 +12,12 @@ matplotlib.use("Agg")
 import matplotlib.dates as mdates  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 
-from app.services.analysis_service import SMA_WINDOWS, fetch_history
+from app.services.analysis_service import PERIOD_DEFAULT, SMA_WINDOWS, fetch_history
 
 
-def render_chart_png(symbol: str) -> bytes | None:
+def render_chart_png(symbol: str, period: str = PERIOD_DEFAULT) -> bytes | None:
     """Genera un PNG con cierres + SMAs. None si no hay datos."""
-    history = fetch_history(symbol)
+    history = fetch_history(symbol, period)
     if history.empty:
         return None
 
@@ -32,7 +32,7 @@ def render_chart_png(symbol: str) -> bytes | None:
             ax.plot(dates, closes.rolling(window=w).mean(), label=f"SMA{w}",
                     linewidth=1.2, color=colors[w])
 
-    ax.set_title(f"{symbol.upper()} — Close + SMA (3mo)")
+    ax.set_title(f"{symbol.upper()} — Close + SMA ({period})")
     ax.set_xlabel("Date")
     ax.set_ylabel("Price")
     ax.legend(loc="best", fontsize=9)

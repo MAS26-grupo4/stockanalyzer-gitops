@@ -1,5 +1,5 @@
 """Router de análisis técnico: capa HTTP."""
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 
 from app.services import analysis_service, chart_service
 
@@ -7,10 +7,13 @@ router = APIRouter(prefix="/api/v1", tags=["analysis"])
 
 
 @router.get("/ticker/{symbol}/analysis")
-def get_ticker_analysis(symbol: str):
-    """Devuelve los indicadores técnicos (SMAs) de los últimos 3 meses."""
+def get_ticker_analysis(
+    symbol: str,
+    period: str = Query(default="3mo", description="Periodo Yahoo Finance: 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max"),
+):
+    """Devuelve los indicadores técnicos (SMAs) del ticker en el periodo indicado."""
     try:
-        payload = analysis_service.get_analysis(symbol)
+        payload = analysis_service.get_analysis(symbol, period)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -24,10 +27,13 @@ def get_ticker_analysis(symbol: str):
 
 
 @router.get("/ticker/{symbol}/chart.png")
-def get_ticker_chart(symbol: str):
+def get_ticker_chart(
+    symbol: str,
+    period: str = Query(default="3mo", description="Periodo Yahoo Finance: 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max"),
+):
     """Devuelve un PNG con la serie de cierres y las SMAs superpuestas."""
     try:
-        png_bytes = chart_service.render_chart_png(symbol)
+        png_bytes = chart_service.render_chart_png(symbol, period)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
