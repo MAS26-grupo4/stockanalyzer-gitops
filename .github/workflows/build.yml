@@ -1,0 +1,63 @@
+name: Build and Push Image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install buildah
+        run: sudo apt-get update && sudo apt-get install -y buildah
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="dev-${GITHUB_SHA::7}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Built ${VERSION} from ${GITHUB_SHA}"
+
+      - name: Build image
+        id: build
+        run: |
+          buildah bud \
+            --tag "${REGISTRY}/${IMAGE_NAME}:${VERSION}" \
+            --tag "${REGISTRY}/${IMAGE_NAME}:latest" \
+            --file Containerfile \
+            .
+
+      - name: Login to ghcr.io
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | buildah login \
+            --username ${{ github.actor }} \
+            --password-stdin \
+            ${REGISTRY}
+
+      - name: Push image
+        run: |
+          buildah push "${REGISTRY}/${IMAGE_NAME}:${VERSION}"
+          buildah push "${REGISTRY}/${IMAGE_NAME}:latest"
+
+      - name: Summary
+        run: |
+          echo "✅ Pushed ${REGISTRY}/${IMAGE_NAME}:${VERSION}"
+          echo "✅ Pushed ${REGISTRY}/${IMAGE_NAME}:latest"
