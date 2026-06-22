@@ -22,42 +22,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install buildah
-        run: sudo apt-get update && sudo apt-get install -y buildah
-
-      - name: Extract metadata (tags, labels)
+      - name: Extract metadata
         id: meta
         run: |
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            VERSION="${{ github.ref_name }}"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME}"
           else
             VERSION="dev-${GITHUB_SHA::7}"
           fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
           echo "Built ${VERSION} from ${GITHUB_SHA}"
 
-      - name: Build image
-        id: build
-        run: |
-          buildah bud \
-            --tag "${REGISTRY}/${IMAGE_NAME}:${VERSION}" \
-            --tag "${REGISTRY}/${IMAGE_NAME}:latest" \
-            --file Containerfile \
-            .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to ghcr.io
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | buildah login \
-            --username ${{ github.actor }} \
-            --password-stdin \
-            ${REGISTRY}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push image
-        run: |
-          buildah push "${REGISTRY}/${IMAGE_NAME}:${VERSION}"
-          buildah push "${REGISTRY}/${IMAGE_NAME}:latest"
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Containerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
       - name: Summary
         run: |
-          echo "✅ Pushed ${REGISTRY}/${IMAGE_NAME}:${VERSION}"
-          echo "✅ Pushed ${REGISTRY}/${IMAGE_NAME}:latest"
+          echo "✅ Pushed ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}"
+          echo "✅ Pushed ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
